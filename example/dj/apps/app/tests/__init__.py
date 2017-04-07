@@ -6,3 +6,4 @@ from .cors import *
 from .standard_operations import *
 from .compatibility import *
 from .serializer import *
+from .resource import *

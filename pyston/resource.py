@@ -199,22 +199,27 @@ class BaseResource(six.with_metaclass(ResourceMetaClass, PermissionsResourceMixi
     def cors_max_age(self):
         return settings.CORS_MAX_AGE
 
-    def _demap_key(self, lookup_key):
-        return {v: k for k, v in self.DATA_KEY_MAPPING.items()}.get(lookup_key, lookup_key)
-
     def update_serialized_data(self, data):
         if data and self.DATA_KEY_MAPPING:
             data = LazyMappedSerializedData(data, self.DATA_KEY_MAPPING).serialize()
         return data
 
-    def update_deserialized_data(self, data):
-        return (
-            {self._demap_key(k): v for k, v in data.items() if k not in self.DATA_KEY_MAPPING}
-            if isinstance(data,dict) else {}
-        )
+    def update_deserialized_data(self, data, key_mapping):
+        def demap_key(key):
+            return {v[0] if isinstance(v, (tuple, list)) else v: k for k, v in key_mapping.items()}.get(key, key)
+
+        def process_dict(k):
+            key = demap_key(k)
+            value = data.get(k)
+            return [self.update_deserialized_data(v, key_mapping.get(key)[1]) for v in value] if (
+                isinstance(value, list) and key in key_mapping.keys()) else (
+                    self.update_deserialized_data(value, key_mapping.get(key)[1]) if (
+                        isinstance(value, dict) and key in key_mapping.keys()) else value)
+
+        return {demap_key(k): process_dict(k) for k in data.keys()} if isinstance(data, dict) else {}
 
     def get_dict_data(self):
-        return self.update_deserialized_data(self.request.data if hasattr(self.request, 'data') else {})
+        return self.update_deserialized_data(self.request.data, self.DATA_KEY_MAPPING) if hasattr(self.request, 'data') else {}
 
     def _get_serialization_format(self):
         serialization_format = self.request._rest_context.get('serialization_format',

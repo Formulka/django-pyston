@@ -134,7 +134,11 @@ class LazyMappedSerializedData(object):
         if isinstance(self.data, (types.GeneratorType, list, tuple)):
             return [LazyMappedSerializedData(val, self.data_mapping) for val in self.data]
         elif isinstance(self.data, dict):
-            return OrderedDict(((self._map_key(key), val) for key, val in self.data.items()))
+            def map_key(lookup_key):
+                key = self.data_mapping.get(lookup_key, lookup_key)
+                return key[0] if isinstance(key, (tuple, list)) else key
+            return OrderedDict(((map_key(key), LazyMappedSerializedData(val, self.data_mapping))
+                                for key, val in self.data.items()))
         else:
             return self.data
 
