@@ -17,7 +17,8 @@ from django.db.models.query import QuerySet
 from django.http.response import Http404
 from django.forms.models import modelform_factory
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils.translation import ugettext_lazy as _
+from django.utils.safestring import mark_safe
+from django.utils.translation import ugettext, ugettext_lazy as _
 
 from functools import update_wrapper
 
@@ -27,7 +28,8 @@ from chamber.utils import remove_accent
 from chamber.utils import transaction
 
 from pyston.conf import settings
-from pyston.utils.helpers import serialized_data_to_python
+from pyston.filters.default_filters import *
+from pyston.filters import get_model_field_or_method_filter, FilterException, FilterValueException
 
 from .paginator import Paginator
 from .response import (HeadersResponse, RESTCreatedResponse, RESTNoContentResponse, ResponseErrorFactory,
@@ -890,3 +892,33 @@ class BaseModelResource(DefaultRESTModelResource, BaseObjectResource):
         if hasattr(form_class, '_meta') and form_class._meta.exclude:
             exclude.extend(form_class._meta.exclude)
         return modelform_factory(self.model, form=form_class, exclude=exclude, fields=fields)
+
+
+    def _get_filter(self, filter_term):
+        filter_name = filter_term.split('__')[0]
+
+        if filter_name in self.filters:
+            return self.filters[filter_name](filter_term, filter_term)
+        else:
+            return get_model_field_or_method_filter(filter_term, self.model)
+
+    def _get_filter_terms_with_values(self):
+        return [
+            (filter_term, value) for filter_term, value in self.request.GET.dict().items()
+            if not filter_term.startswith('_')
+        ]
+
+    def _filter_queryset(self, qs):
+        qs_filter_terms = []
+        for filter_term, value in self._get_filter_terms_with_values():
+            try:
+                q = self._get_filter(filter_term).get_q(value, self.request)
+                qs_filter_terms.append(q)
+            except FilterValueException as ex:
+                raise RESTException(
+                    mark_safe(ugettext('Invalid filter value "{}={}". {}').format(filter_term, value, ex))
+                )
+            except FilterException:
+                raise RESTException(mark_safe(ugettext('Cannot resolve filter "{}={}"').format(filter_term, value)))
+
+        return qs.filter(pk__in=qs.filter(*qs_filter_terms).values('pk')) if qs_filter_terms else qs
