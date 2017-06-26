@@ -62,9 +62,6 @@ class CountWatchersPerIssueResource(BaseResource):
 
 class TestTextObject(SerializableObj):
 
-    def __init__(self, fiz_baz):
-        self.fiz_baz = fiz_baz
-
     class RESTMeta:
         fields = ('fiz_baz',)
 
@@ -89,7 +86,7 @@ class TestCamelCaseResource(BaseResource):
     }
 
     def get(self):
-        connected = TestTextObject('test object property content')
+        connected = TestTextObject(fiz_baz='test object property content')
         return {
             'foo_bar': 'foo bar',
             'connected': connected,

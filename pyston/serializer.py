@@ -48,6 +48,10 @@ class SerializableObj(Serializable):
 
     resource_typemapper = {}
 
+    def __init__(self, *args, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     def _get_value(self, field, serialization_format, request, **kwargs):
         val = getattr(self, field)
         return get_serializer(
