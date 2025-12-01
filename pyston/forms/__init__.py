@@ -136,13 +136,15 @@ class RestDictIndexError(RestError):
 
 class RestValidationError(RestError):
 
-    def __init__(self, message, code=None):
+    def __init__(self, message, code=None, context=None):
         if isinstance(message, (RestValidationError, ValidationError)):
             self.message = message.message
             self.code = message.code
+            self.context = getattr(message, 'context', {}) | (context or {})
         else:
             self.message = message
             self.code = code or DEFAULT_CODE
+            self.context = context or {}
 
     def __str__(self):
         return self.message
@@ -613,7 +615,9 @@ class RestFormMixin:
         elif isinstance(errors, dict):
             return RestDictError({k: self._parse_rest_errors(v) for k, v in errors.items()})
         else:
-            return RestValidationError(list(errors.as_data()[0])[0], errors.as_data()[0].code)
+            error = errors.as_data()[0]
+            context = error.params if isinstance(error, ValidationError) else None
+            return RestValidationError(list(error)[0], error.code, context=context)
 
     def is_invalid(self):
         """

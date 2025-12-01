@@ -122,4 +122,4 @@ Pyston forms exception classes are defined in ``pyston.forms``.
 .. exception:: RestValidationError
 
     ``RestValidationError`` is similar to Django ``ValidationError`` but it can contain only one error message with one
-    code.
+    code and context.
