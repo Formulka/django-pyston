@@ -269,7 +269,7 @@ class DateFilterMixin:
     def _clean_datetime(self, value):
         try:
             datetime_value = DEFAULTPARSER.parse(value, dayfirst='-' not in value)
-            return make_aware(datetime_value, is_dst=True) if datetime_value.tzinfo is None else datetime_value
+            return make_aware(datetime_value) if datetime_value.tzinfo is None else datetime_value
         except ValueError:
             raise FilterValueError(gettext('Value must be in format ISO 8601.'))
 
